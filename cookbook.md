@@ -82,6 +82,21 @@ first recipe of this cookbook!
 
 ## Recipe 1: packages that need dependencies to build
 
+Fixing packages that require system-level dependencies is a matter of adding
+one, maybe two lines, in the right place in the expression that defines the
+whole of the `rPackages` set. You can find this file
+[here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/r-modules/default.nix).
+
+In there, you will find a line that starts with `packagesWithNativeBuildInputs =
+{` and another that starts with `packagesWithBuildInputs = {` and that defines a
+long list of packages. The differences between `NativeBuildInputs` and
+`BuildInputs` is that dependencies that are needed for compilation get listed
+into `NativeBuildInputs` (so things like compiler, or `pkg-config`) and
+dependencies that are needed at run-time (dynamic libraries) are `BuildInputs`.
+For R, actually, you could put everything under `NativeBuildInputs` and it would
+still work, but we try to pay attention to this and do it properly. In case of
+doubt, put everything under `NativeBuildInputs`: when reviewing your PR, people
+will then tell you where to put what.
 
 
 ## Recipe 2: packages that need a home, X, or simple patching
