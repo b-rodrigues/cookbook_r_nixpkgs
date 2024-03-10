@@ -15,12 +15,39 @@ more work. The goal of this cookbook is to make you quickly familiar with the
 main reasons a package may be broken and explain to you how to fix it, and why
 certain packages get fixed in certain ways.
 
+## *Mise en place*
+
+We first need to get our tools and ingredients in order before cooking.
+Fork the [`nixpkgs` reposiory](https://github.com/NixOS/nixpkgs) and clone it
+to your computer. Then, add the original repository as a remote:
+
+```
+git checkout master
+
+# Add upstream as a remote
+git remote add upstream git@github.com:NixOS/nixpkgs.git
+```
+
+This way, each time you want to fix a package, you can fetch the latest updates
+from upstream and merge them to your local copy:
+
+```
+# Fetch latest updates
+git fetch upstream
+
+# Merge latest upstream/master to your master
+git merge upstream/master
+```
+
+Make sure to merge the latest commits from upstream regularly, because `nixpkgs`
+gets updated very frequently each day. We can now look for a package to fix.
+
 ## The starter: where to find packages to fix
 
 The first step to help fix a package is to find a package to fix: you should
 visit the latest `rPackages` evaluation over [here](https://hydra.nixos.org/jobset/nixpkgs/r-updates).
-Visit the "Still failing jobs" tab to see which packages' builds didn't succeed and
-click on a package:
+Click on the "Still failing jobs" tab to see which packages' builds didn't succeed and
+click on a package. You should see something like this:
 
 ![AIUQ build steps](images/AIUQ_failing.png)
 
@@ -37,12 +64,12 @@ failing jobs" tab from before, but with several added niceties. First of all,
 there's a column called `fails_because_of` that shows the name of the package
 that caused another to fail. So in our example with `{AIUQ}`, `{SuperGauss}`
 would be listed there (if a package fails for another reason, like a missing
-system-level dependency, that its own name is listed there). You can type
+system-level dependency, then its own name is listed there). You can type
 `{SuperGauss}` on the little box there to filter and see all the packages that
 fail because of of it. Then, you can also see the package's *package rank*. This
-rank is computer using the `{packageRank}` package, and the table is sorted by
+rank is computed using the `{packageRank}` package, and the table is sorted by
 lowest rank (low ranks indicate high popularity and there's also the
-`percentile` column that indicate the percentage of packages with higher
+`percentile` column that indicates the percentage of packages with higher
 downloads). Finally, there's a direct link to a PR fixing the package (if it has
 been opened) and also the PR's status: has it been merged already or not?
 
@@ -87,33 +114,16 @@ one, maybe two lines, in the right place in the expression that defines the
 whole of the `rPackages` set. You can find this file
 [here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/r-modules/default.nix).
 
-In there, you will find a line that starts with `packagesWithNativeBuildInputs = {`
-and another that starts with `packagesWithBuildInputs = {` which define a
+In there, you will find a line that starts with `packagesWithNativeBuildInputs =
+{` and another that starts with `packagesWithBuildInputs = {` which define a
 long list of packages. The differences between `NativeBuildInputs` and
 `BuildInputs` is that dependencies that are needed for compilation get listed
-into `NativeBuildInputs` (so things like compiler, or `pkg-config`) and
-dependencies that are needed at run-time (dynamic libraries) are `BuildInputs`.
-For R, actually, you could put everything under `NativeBuildInputs` and it would
-still work, but we try to pay attention to this and do it properly. In case of
-doubt, put everything under `NativeBuildInputs`: when reviewing your PR, people
-will then tell you where to put what.
-
-Before trying anything, try to install the package and test it. Assuming you have
-cloned your fork of the `nixpkgs` repository, make sure to be on the very latest
-commit of master:
-
-```
-git checkout master
-
-# Add upstream as a remote
-git remote add upstream git@github.com:NixOS/nixpkgs.git
-
-# Fetch latest updates
-git fetch upstream
-
-# Merge latest upstream/master to your master
-git merge upstream/master
-```
+into `NativeBuildInputs` (so things like compilers, packages such as
+`pkg-config`) and dependencies that are needed at run-time (dynamic libraries)
+get listed under `BuildInputs`. For R, actually, you could put everything under
+`NativeBuildInputs` and it would still work, but we try to pay attention to this
+and do it properly. In case of doubt, put everything under `NativeBuildInputs`:
+when reviewing your PR, people will then tell you where to put what.
 
 Now try to build the package. The following line will drop you in an interactive
 Nix shell with the package, if build succeeds (run the command at the root of the
@@ -139,7 +149,7 @@ and FFTW_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details.
 ```
 
-If you look inside the two lists, that define the packages that need
+If you look inside the two lists that define the packages that need
 `nativeBuildInputs` and `buildInputs`, you'll see that many of them
 have `pkg-config` listed there. So let's add the following line in the
 `packagesWithNativeBuildInputs`
@@ -157,6 +167,62 @@ SuperGauss = [ pkgs.fftw.dev ];
 This is because `pkg-config` is only needed to compile `{SuperGauss}`
 and `fftw.dev` is needed at run-time as well.
 
+Try to build a shell with `{SuperGauss}` again:
+
+```
+nix-shell -I nixpkgs=. -p R rPackages.SuperGauss
+```
+
+If it worked, start R and load the library. Sometimes packages can build
+successfully but fail to launch, so taking the time to load it avoids
+wasting your reviewer's time. Ideally, try to run one or several
+examples from the package's vignette or help files. This also makes sure
+that everything is working properly. If your testing succeeded, you can
+now open a PR!
+
+Before committing, make sure that you are on a seprate branch for this fix:
+
+```
+git checkout -b fix_supergauss
+```
+
+From there, make sure that only the `default.nix` file changed:
+
+```
+git status
+```
+
+
+```
+user@computer:~/Documents/nixpkgs(fix_supergauss *)$ git status
+On branch fix_supergaus
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   pkgs/development/r-modules/default.nix
+
+no changes added to commit (use "git add" and/or "git commit -a")
+```
+
+Great, so add it and write following commit message:
+
+```
+git add .
+git commit -m "rPackages.SuperGauss: fixed build"
+```
+
+This commit message follows `nixpkgs` [contributing guidelines](https://nixos.wiki/wiki/Nixpkgs/Contributing).
+Format all your messages like this.
+
+Now push your changes:
+
+```
+git push origin fix_supergauss
+```
+
+and go on your fork's repository to open a PR. 
+
+Congratulations, you fixed your package!
 
 ## Recipe 2: packages that need a home, X, or simple patching
 
@@ -173,3 +239,5 @@ https://github.com/NixOS/nixpkgs/pull/293081
 https://github.com/NixOS/nixpkgs/pull/291004
 
 https://github.com/NixOS/nixpkgs/pull/292149
+
+## Solving conflicts
