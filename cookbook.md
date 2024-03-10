@@ -222,9 +222,51 @@ git push origin fix_supergauss
 
 and go on your fork's repository to open a PR. 
 
-Congratulations, you fixed your package!
+Congratulations, you fixed your first package!
 
 ## Recipe 2: packages that need a home, X, or simple patching
+
+Some package may require a `/home` directory during their installation process. They
+usually fail with a message that looks like this:
+
+```
+Warning in normalizePath("~") :
+  path[1]="/homeless-shelter": No such file or directory
+```
+
+so add the package to the list named `packagesRequiringHome` and
+try rebuilding.
+
+See this PR as an example: https://github.com/NixOS/nixpkgs/pull/292336
+
+Some packages require `X`, as in `X11`, the windowing system on Linux
+distributions. In other words, these pacakges must be installed on a machine
+with a graphical session running. So because that's not the case on Hydra, this
+needs to be mocked. Simply add the package to the list named
+`packagesRequiringX` and try rebuilding.
+
+See this PR https://github.com/NixOS/nixpkgs/pull/292347 for an example.
+
+Finally, some packages that must compiled need first to be configured. This is a
+common step when compiling software. This configuration step ensures that needed
+dependencies are found (among other things). Because Nix works the way it does,
+it can happen that this configuration step fails because dependencies are not in
+the usual `/usr/bin` or `/bin`, etc, paths. So this needs to be patched before
+the configuration step. To fix this, the `configuration` file that lists the
+different dependencies to be found needs to be patched, and this can be done
+by overriding one of the phases before the configure phase. We now override
+the `postPatch` phase like this:
+
+```
+RcppCGAL = old.RcppCGAL.overrideAttrs (attrs: {
+  postPatch = "patchShebangs configure";
+});
+```
+
+Read more about `patchShebangs`
+[here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/build-support/setup-hooks/patch-shebangs.sh).
+
+See this PR for an example: https://github.com/NixOS/nixpkgs/pull/289775
 
 ## Recipe 3: packages that require their attributes to be overridden
 
