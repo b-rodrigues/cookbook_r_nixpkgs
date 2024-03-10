@@ -87,8 +87,8 @@ one, maybe two lines, in the right place in the expression that defines the
 whole of the `rPackages` set. You can find this file
 [here](https://github.com/NixOS/nixpkgs/blob/master/pkgs/development/r-modules/default.nix).
 
-In there, you will find a line that starts with `packagesWithNativeBuildInputs =
-{` and another that starts with `packagesWithBuildInputs = {` and that defines a
+In there, you will find a line that starts with `packagesWithNativeBuildInputs = {`
+and another that starts with `packagesWithBuildInputs = {` which define a
 long list of packages. The differences between `NativeBuildInputs` and
 `BuildInputs` is that dependencies that are needed for compilation get listed
 into `NativeBuildInputs` (so things like compiler, or `pkg-config`) and
@@ -98,9 +98,78 @@ still work, but we try to pay attention to this and do it properly. In case of
 doubt, put everything under `NativeBuildInputs`: when reviewing your PR, people
 will then tell you where to put what.
 
+Before trying anything, try to install the package and test it. Assuming you have
+cloned your fork of the `nixpkgs` repository, make sure to be on the very latest
+commit of master:
+
+```
+git checkout master
+
+# Add upstream as a remote
+git remote add upstream git@github.com:NixOS/nixpkgs.git
+
+# Fetch latest updates
+git fetch upstream
+
+# Merge latest upstream/master to your master
+git merge upstream/master
+```
+
+Now try to build the package. The following line will drop you in an interactive
+Nix shell with the package, if build succeeds (run the command at the root of the
+cloned `nixpkgs` directory):
+
+```
+nix-shell -I nixpkgs=. -p R rPackages.SuperGauss
+```
+
+if you see the same error as on Hydra, and made sure that no PR is opened, then
+you can start fixing the package.
+
+So, we need to add two dependencies. Let's read the relevant lines in the error
+message again:
+
+```
+configure: error: The pkg-config script could not be found or is too old.  Make sure it
+is in your PATH or set the PKG_CONFIG environment variable to the full
+path to pkg-config.
+
+Alternatively, you may set the environment variables FFTW_CFLAGS
+and FFTW_LIBS to avoid the need to call pkg-config.
+See the pkg-config man page for more details.
+```
+
+If you look inside the two lists, that define the packages that need
+`nativeBuildInputs` and `buildInputs`, you'll see that many of them
+have `pkg-config` listed there. So let's add the following line in the
+`packagesWithNativeBuildInputs`
+
+```
+SuperGauss = [ pkgs.pkg-config ];
+```
+
+and this one under `packagesWithBuildInputs`:
+
+```
+SuperGauss = [ pkgs.fftw.dev ];
+```
+
+This is because `pkg-config` is only needed to compile `{SuperGauss}`
+and `fftw.dev` is needed at run-time as well.
+
 
 ## Recipe 2: packages that need a home, X, or simple patching
 
-## Recipe 3: packages that require internet access to build
+## Recipe 3: packages that require their attributes to be overridden
 
-## Recipe 4: packages that need a dependency that must be overridden
+https://github.com/NixOS/nixpkgs/pull/292329
+
+## Recipe 4: packages that require internet access to build
+
+## Recipe 5: packages that need a dependency that must be overridden
+
+https://github.com/NixOS/nixpkgs/pull/293081
+
+https://github.com/NixOS/nixpkgs/pull/291004
+
+https://github.com/NixOS/nixpkgs/pull/292149
