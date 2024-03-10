@@ -268,9 +268,76 @@ Read more about `patchShebangs`
 
 See this PR for an example: https://github.com/NixOS/nixpkgs/pull/289775
 
+Sometimes patching is a bit more complicated. See this other example
+[here](https://github.com/NixOS/nixpkgs/pull/291258).
+
 ## Recipe 3: packages that require their attributes to be overridden
 
-https://github.com/NixOS/nixpkgs/pull/292329
+Staying on the topic of overrides, it can also happen that packages need one or
+more of their attributes to be overridden. This is already much more complex
+than the recipes from before, because the error messages that may hint at
+overrides being needed are much more cryptic. For example, here's
+the build log of `{xslt}`:
+
+```
+Running phase: unpackPhase
+unpacking source archive /nix/store/gxcysc8y3x1wz7qz3q1fpv8g8f92iqyv-xslt_1.4.4.tar.gz
+source root is xslt
+setting SOURCE_DATE_EPOCH to timestamp 1676995202 of file xslt/MD5
+Running phase: patchPhase
+Running phase: updateAutotoolsGnuConfigScriptsPhase
+Running phase: configurePhase
+Running phase: buildPhase
+Running phase: checkPhase
+Running phase: installPhase
+* installing *source* package 'xslt' ...
+** package 'xslt' successfully unpacked and MD5 sums checked
+** using staged installation
+Found pkg-config cflags and libs!
+Using PKG_CFLAGS=-I/nix/store/8jkj0gm1chw8rhpqbpljydlwsm6hmgwp-libxslt-1.1.39-dev/include -I/nix/store/iqjsxkcdnvvz1bfpq960ygicc5clz9hv-libxml2-2.12.3-unstable-2023-12-14-dev/include/libxml2
+Using PKG_LIBS=-L/nix/store/ksp5m4p5fi1d8zvhng96qqzy1wqc51v6-libxslt-1.1.39/lib -L/nix/store/4jvs7wz2jfmc6x9zgngfcr9804x9hwln-libxml2-2.12.3-unstable-2023-12-14/lib -lexslt -lxslt -lxml2
+** libs
+using C++ compiler: 'g++ (GCC) 13.2.0'
+rm -f RcppExports.o xslt.o xslt_init.o xslt.so
+/nix/store/xq8920m5mbd83vdlydwli7qsh67gfm5v-gcc-wrapper-13.2.0/bin/c++ -std=gnu++17 -I"/nix/store/403kbh5v910gks340j7s1647kijm60rv-R-4.3.2/lib/R/include" -DNDEBUG -I/nix/store/8jkj0gm1chw8rhpqbpljydlwsm6hmgwp-libxslt-1.1.39-dev/include -I/nix/store/iqjsxkcdnvvz1bfpq960ygicc5clz9hv-libxml2-2.12.3-unstable-2023-12-14-dev/include/libxml2 -DSTRICT_R_HEADERS -I'/nix/store/0vzi341m7nbxhdbi8kj50nwn7rrssk5z-r-Rcpp-1.0.12/library/Rcpp/include' -I'/nix/store/h6z1v3qb2pxhb3yjrykdaircz3xk1jla-r-xml2-1.3.6/library/xml2/include'     -fpic  -g -O2  -c RcppExports.cpp -o RcppExports.o
+/nix/store/xq8920m5mbd83vdlydwli7qsh67gfm5v-gcc-wrapper-13.2.0/bin/c++ -std=gnu++17 -I"/nix/store/403kbh5v910gks340j7s1647kijm60rv-R-4.3.2/lib/R/include" -DNDEBUG -I/nix/store/8jkj0gm1chw8rhpqbpljydlwsm6hmgwp-libxslt-1.1.39-dev/include -I/nix/store/iqjsxkcdnvvz1bfpq960ygicc5clz9hv-libxml2-2.12.3-unstable-2023-12-14-dev/include/libxml2 -DSTRICT_R_HEADERS -I'/nix/store/0vzi341m7nbxhdbi8kj50nwn7rrssk5z-r-Rcpp-1.0.12/library/Rcpp/include' -I'/nix/store/h6z1v3qb2pxhb3yjrykdaircz3xk1jla-r-xml2-1.3.6/library/xml2/include'     -fpic  -g -O2  -c xslt.cpp -o xslt.o
+/nix/store/xq8920m5mbd83vdlydwli7qsh67gfm5v-gcc-wrapper-13.2.0/bin/c++ -std=gnu++17 -I"/nix/store/403kbh5v910gks340j7s1647kijm60rv-R-4.3.2/lib/R/include" -DNDEBUG -I/nix/store/8jkj0gm1chw8rhpqbpljydlwsm6hmgwp-libxslt-1.1.39-dev/include -I/nix/store/iqjsxkcdnvvz1bfpq960ygicc5clz9hv-libxml2-2.12.3-unstable-2023-12-14-dev/include/libxml2 -DSTRICT_R_HEADERS -I'/nix/store/0vzi341m7nbxhdbi8kj50nwn7rrssk5z-r-Rcpp-1.0.12/library/Rcpp/include' -I'/nix/store/h6z1v3qb2pxhb3yjrykdaircz3xk1jla-r-xml2-1.3.6/library/xml2/include'     -fpic  -g -O2  -c xslt_init.cpp -o xslt_init.o
+xslt_init.cpp: In function 'void R_init_xslt(DllInfo*)':
+xslt_init.cpp:36:37: error: invalid conversion from 'void (*)(void*, xmlError*)' {aka 'void (*)(void*, _xmlError*)'} to 'xmlStructuredErrorFunc' {aka 'void (*)(void*, const _xmlError*)'} [8;;https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#index-fpermissive-fpermissive8;;]
+   36 |     xmlSetStructuredErrorFunc(NULL, handleError);
+      |                                     ^~~~~~~~~~~
+      |                                     |
+      |                                     void (*)(void*, xmlError*) {aka void (*)(void*, _xmlError*)}
+In file included from xslt_init.cpp:4:
+/nix/store/iqjsxkcdnvvz1bfpq960ygicc5clz9hv-libxml2-2.12.3-unstable-2023-12-14-dev/include/libxml2/libxml/xmlerror.h:898:57: note:   initializing argument 2 of 'void xmlSetStructuredErrorFunc(void*, xmlStructuredErrorFunc)'
+  898 |                                  xmlStructuredErrorFunc handler);
+      |                                  ~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~
+make: *** [/nix/store/403kbh5v910gks340j7s1647kijm60rv-R-4.3.2/lib/R/etc/Makeconf:200: xslt_init.o] Error 1
+ERROR: compilation failed for package 'xslt'
+* removing '/nix/store/1p4qp17ccjvi53g3vl67j3z8n1lp61m3-r-xslt-1.4.4/library/xslt'
+```
+
+The only hint in there is that url pointing to `gcc`'s manual entry on the
+`-fpermissive` flag. What happened, is that code raises some warning during
+compilation: without this flag, the warning gets turned into an error. So we
+need to add this flag during compilation to "tolerate" the warning. Here's
+how this was done for `{xslt}`:
+
+```
+xslt = old.xslt.overrideAttrs (attrs: {
+  env = (attrs.env or { }) // {
+    NIX_CFLAGS_COMPILE = attrs.env.NIX_CFLAGS_COMPILE + " -fpermissive";
+  };
+});
+```
+
+So the attribute we override is the `NIX_CFLAGS_COMPILE` attribute. We
+add `-fpermissive` to the other flags and we're good to go.
+
+Check out this PR for the complete `{xlst} example: `https://github.com/NixOS/nixpkgs/pull/292329
+
+Also take some time to read other examples of overrides in the `default.nix`
+file to learn about other common attributes that could need to be overridden.
 
 ## Recipe 4: packages that require internet access to build
 
