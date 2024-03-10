@@ -339,9 +339,7 @@ Check out this PR for the complete `{xlst} example: `https://github.com/NixOS/ni
 Also take some time to read other examples of overrides in the `default.nix`
 file to learn about other common attributes that could need to be overridden.
 
-## Recipe 4: packages that require internet access to build
-
-## Recipe 5: packages that need a dependency that must be overridden
+## Recipe 4: packages that need a dependency that must be overridden
 
 https://github.com/NixOS/nixpkgs/pull/293081
 
@@ -350,3 +348,5 @@ https://github.com/NixOS/nixpkgs/pull/291004
 https://github.com/NixOS/nixpkgs/pull/292149
 
 ## Solving conflicts
+
+## Broken packages
