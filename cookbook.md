@@ -9,17 +9,18 @@ don't know where to start?
 This guide will help you help us! It lists N common recipes to start fixing R
 packages for inclusion to `nixpkgs`. Every package available on CRAN and
 Bioconductor gets built on Hydra and made available through the `rPackages`
-packageset. However, some packages don't build successfully, and require manual
-fixing. Most of them are very quick, one-line fixes, but others require a bit
-more work. The goal of this cookbook is to make you quickly familiar with the
-main reasons a package may be broken and explain to you how to fix it, and why
-certain packages get fixed in certain ways.
+packageset. So there's no need to manually package them. However, some packages
+don't build successfully, and require manual fixing. Most of them are very
+quick, one-line fixes, but others require a bit more work. The goal of this
+cookbook is to make you quickly familiar with the main reasons a package may be
+broken and explain to you how to fix it, and why certain packages get fixed in
+certain ways.
 
 ## *Mise en place*
 
-We first need to get our tools and ingredients in order before cooking.
-Fork the [`nixpkgs` reposiory](https://github.com/NixOS/nixpkgs) and clone it
-to your computer. Then, add the original repository as a remote:
+We first need to get our tools and ingredients in order before cooking. Fork the
+[`nixpkgs` repository](https://github.com/NixOS/nixpkgs) and clone it to your
+computer. Then, add the original repository as a remote:
 
 ```
 git checkout master
@@ -45,15 +46,15 @@ gets updated very frequently each day. We can now look for a package to fix.
 ## The starter: where to find packages to fix
 
 The first step to help fix a package is to find a package to fix: you should
-visit the latest `rPackages` evaluation over [here](https://hydra.nixos.org/jobset/nixpkgs/r-updates).
-Click on the "Still failing jobs" tab to see which packages' builds didn't succeed and
-click on a package. You should see something like this:
+visit the latest `rPackages` evaluation over
+[here](https://hydra.nixos.org/jobset/nixpkgs/r-updates). Click on the "Still
+failing jobs" tab to see which packages' builds didn't succeed and click on a
+package. You should see something like this:
 
 ![AIUQ build steps](images/AIUQ_failing.png)
 
-From there, you can see that `{AIUQ}`'s build failed because of another
-package, `{SuperGauss}`, so fixing `{SuperGauss}` will likely fix this one
-as well.
+From there, you can see that `{AIUQ}`'s build failed because of another package,
+`{SuperGauss}`, so fixing `{SuperGauss}` will likely fix this one as well.
 
 From here, you can look for `{SuperGauss}` in the "Still failing jobs" tab, and
 see why `{SuperGauss}` failed, or you could check out a little dashboard I built
@@ -74,12 +75,12 @@ downloads). Finally, there's a direct link to a PR fixing the package (if it has
 been opened) and also the PR's status: has it been merged already or not?
 
 Having a link to the PR is quite useful, because it immediately tells you if
-someone already tried fixing it. If the PR has been merged, simply try to fix
-another package. If the PR is open and not yet merged, this is a great
+someone already tried fixing it. If the PR has been merged, simply try to another
+fix package. If the PR is open and not yet merged, this is a great
 opportunity to help review it (more on that below)!
 
-Let's go back to fixing `{SuperGauss}`. If you go back on Hydra, you can
-see the error message that was thrown during building:
+Let's go back to fixing `{SuperGauss}`. If you go back on Hydra, you can see the
+error message that was thrown during building:
 
 ![Check out the logfile](images/SuperGauss_log.png)
 
@@ -116,9 +117,9 @@ whole of the `rPackages` set. You can find this file
 
 In there, you will find a line that starts with `packagesWithNativeBuildInputs =
 {` and another that starts with `packagesWithBuildInputs = {` which define a
-long list of packages. The differences between `NativeBuildInputs` and
+long list of packages. The difference between `NativeBuildInputs` and
 `BuildInputs` is that dependencies that are needed for compilation get listed
-into `NativeBuildInputs` (so things like compilers, packages such as
+into `NativeBuildInputs` (so things like compilers and packages such as
 `pkg-config`) and dependencies that are needed at run-time (dynamic libraries)
 get listed under `BuildInputs`. For R, actually, you could put everything under
 `NativeBuildInputs` and it would still work, but we try to pay attention to this
@@ -126,8 +127,8 @@ and do it properly. In case of doubt, put everything under `NativeBuildInputs`:
 when reviewing your PR, people will then tell you where to put what.
 
 Now try to build the package. The following line will drop you in an interactive
-Nix shell with the package, if build succeeds (run the command at the root of the
-cloned `nixpkgs` directory):
+Nix shell with the package if build succeeds (run the command at the root of
+the cloned `nixpkgs` directory):
 
 ```
 nix-shell -I nixpkgs=. -p R rPackages.SuperGauss
@@ -149,10 +150,10 @@ and FFTW_LIBS to avoid the need to call pkg-config.
 See the pkg-config man page for more details.
 ```
 
-If you look inside the two lists that define the packages that need
-`nativeBuildInputs` and `buildInputs`, you'll see that many of them
-have `pkg-config` listed there. So let's add the following line in the
-`packagesWithNativeBuildInputs`
+If you look in the `default.nix` file, in particular the two lists that define
+the packages that need `nativeBuildInputs` and `buildInputs`, you'll see that
+many of them have `pkg-config` listed there already. So let's add the following
+line in the `packagesWithNativeBuildInputs`
 
 ```
 SuperGauss = [ pkgs.pkg-config ];
@@ -164,8 +165,8 @@ and this one under `packagesWithBuildInputs`:
 SuperGauss = [ pkgs.fftw.dev ];
 ```
 
-This is because `pkg-config` is only needed to compile `{SuperGauss}`
-and `fftw.dev` is needed at run-time as well.
+This is because `pkg-config` is only needed to compile `{SuperGauss}` and
+`fftw.dev` is needed at run-time as well.
 
 Try to build a shell with `{SuperGauss}` again:
 
@@ -174,13 +175,13 @@ nix-shell -I nixpkgs=. -p R rPackages.SuperGauss
 ```
 
 If it worked, start R and load the library. Sometimes packages can build
-successfully but fail to launch, so taking the time to load it avoids
-wasting your reviewer's time. Ideally, try to run one or several
-examples from the package's vignette or help files. This also makes sure
-that everything is working properly. If your testing succeeded, you can
-now open a PR!
+successfully but fail to launch, so taking the time to load them avoids wasting
+your reviewer's time. Ideally, try to run one or several examples from the
+package's vignette or help files. This also makes sure that everything is
+working properly. If your testing succeeded, you can now open a PR!
 
-Before committing, make sure that you are on a seprate branch for this fix:
+Before committing, make sure that you are on a seprate branch for this fix (you
+can do your changes on `master` as long as you don't commit and change branch):
 
 ```
 git checkout -b fix_supergauss
@@ -191,7 +192,6 @@ From there, make sure that only the `default.nix` file changed:
 ```
 git status
 ```
-
 
 ```
 user@computer:~/Documents/nixpkgs(fix_supergauss *)$ git status
@@ -204,14 +204,16 @@ Changes not staged for commit:
 no changes added to commit (use "git add" and/or "git commit -a")
 ```
 
-Great, so add it and write following commit message:
+Sometimes, running examples may produce files, so if that's the case get rid of
+them. No files added in this case so add `default.nix` to the commit and write
+following commit message:
 
 ```
 git add .
 git commit -m "rPackages.SuperGauss: fixed build"
 ```
 
-This commit message follows `nixpkgs` [contributing guidelines](https://nixos.wiki/wiki/Nixpkgs/Contributing).
+This commit message follows `nixpkgs`'s [contributing guidelines](https://nixos.wiki/wiki/Nixpkgs/Contributing).
 Format all your messages like this.
 
 Now push your changes:
@@ -247,15 +249,15 @@ needs to be mocked. Simply add the package to the list named
 
 See this PR https://github.com/NixOS/nixpkgs/pull/292347 for an example.
 
-Finally, some packages that must compiled need first to be configured. This is a
-common step when compiling software. This configuration step ensures that needed
-dependencies are found (among other things). Because Nix works the way it does,
-it can happen that this configuration step fails because dependencies are not in
-the usual `/usr/bin` or `/bin`, etc, paths. So this needs to be patched before
-the configuration step. To fix this, the `configuration` file that lists the
-different dependencies to be found needs to be patched, and this can be done
-by overriding one of the phases before the configure phase. We now override
-the `postPatch` phase like this:
+Finally, some packages that must be compiled need first to be configured. This
+is a common step when compiling software. This configuration step ensures that
+needed dependencies are found (among other things). Because Nix works the way it
+does, it can happen that this configuration step fails because dependencies are
+not in the usual `/usr/bin` or `/bin`, etc, paths. So this needs to be patched
+before the configuration step. To fix this, the `configuration` file that lists
+the different dependencies to be found needs to be patched, and this can be done
+by overriding one of the phases before the configure phase. We override the
+`postPatch` phase like this:
 
 ```
 RcppCGAL = old.RcppCGAL.overrideAttrs (attrs: {
@@ -275,9 +277,9 @@ Sometimes patching is a bit more complicated. See this other example
 
 Staying on the topic of overrides, it can also happen that packages need one or
 more of their attributes to be overridden. This is already much more complex
-than the recipes from before, because the error messages that may hint at
-overrides being needed are much more cryptic. For example, here's
-the build log of `{xslt}`:
+than the recipes from before, because the error messages that may hint at which
+attributes to override can be much more cryptic. For example, here's the build
+log of `{xslt}`:
 
 ```
 Running phase: unpackPhase
@@ -318,10 +320,10 @@ ERROR: compilation failed for package 'xslt'
 ```
 
 The only hint in there is that url pointing to `gcc`'s manual entry on the
-`-fpermissive` flag. What happened, is that code raises some warning during
+`-fpermissive` flag. What happened is that code raises some warning during
 compilation: without this flag, the warning gets turned into an error. So we
-need to add this flag during compilation to "tolerate" the warning. Here's
-how this was done for `{xslt}`:
+need to add this flag during compilation to "tolerate" the warning. Here's how
+this was done for `{xslt}`:
 
 ```
 xslt = old.xslt.overrideAttrs (attrs: {
@@ -340,6 +342,9 @@ Also take some time to read other examples of overrides in the `default.nix`
 file to learn about other common attributes that could need to be overridden.
 
 ## Recipe 4: packages that need a dependency that must be overridden
+
+Sometimes it is not the attribute of a package that needs to be overriden, but
+one of its dependencies.
 
 https://github.com/NixOS/nixpkgs/pull/293081
 
